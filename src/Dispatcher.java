@@ -1,8 +1,12 @@
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 public class Dispatcher extends Person {
-    private String terminalName;
+    private final String terminalName;
 
     public Dispatcher(String id, String name, String contactNumber, String terminalName) {
         super(id, name, contactNumber);
@@ -18,8 +22,13 @@ public class Dispatcher extends Person {
     }
 
     public void callNextDriver(TerminalQueue queue) {
+        Driver loading = queue.getLoadingDriver();
+        if (loading != null) {
+            System.out.println(loading.getName() + " is already NOW LOADING. Confirm departure before calling the next driver.");
+            return;
+        }
         Driver d = queue.getNextDriver();
-        if (d == null) System.out.println("No drivers in the queue.");
+        if (d == null) System.out.println("No drivers in the queue, or the queue could not be saved.");
         else System.out.println("NOW LOADING: " + d.getName() + " (" + d.getVehicle().getPlateNumber() + ")");
     }
 
@@ -31,22 +40,44 @@ public class Dispatcher extends Person {
 
     // Returns one row per driver: {id, name, trips, fares, boundary, net}
     public List<Object[]> buildReportRows(List<Driver> drivers, String date) {
+        LocalDate reportDate;
+        try {
+            reportDate = LocalDate.parse(date);
+        } catch (DateTimeParseException | NullPointerException e) {
+            throw new IllegalArgumentException("Date must use yyyy-MM-dd format.", e);
+        }
+        String normalizedDate = reportDate.toString();
+        Set<String> voidedTrips = FileManager.getVoidedTripIds();
+        Map<String, String> effectiveTrips = FileManager.getEffectiveTrips();
         List<Object[]> rows = new ArrayList<>();
         for (Driver d : drivers) {
             int trips = 0;
             double fares = 0, boundary = 0;
 
-            for (String line : FileManager.readFile(FileManager.TRIPS)) {
+            for (String line : effectiveTrips.values()) {
                 String[] p = line.split("\\|");
-                if (p.length >= 9 && p[1].equals(d.getId()) && p[8].startsWith(date)) {
-                    trips++;
-                    fares += Double.parseDouble(p[7]);
+                if (p.length >= 9 && !voidedTrips.contains(p[0]) && p[1].equals(d.getId())
+                        && p[8].startsWith(normalizedDate)) {
+                    try {
+                        double amount = Double.parseDouble(p[7]);
+                        if (!Double.isFinite(amount) || amount < 0) throw new NumberFormatException();
+                        fares += amount;
+                        trips++;
+                    } catch (NumberFormatException e) {
+                        System.err.println("Skipping trip with invalid fare: " + line);
+                    }
                 }
             }
             for (String line : FileManager.readFile(FileManager.BOUNDARY)) {
                 String[] p = line.split("\\|");
-                if (p.length >= 4 && p[1].equals(d.getId()) && p[2].equals(date)) {
-                    boundary += Double.parseDouble(p[3]);
+                if (p.length >= 4 && p[1].equals(d.getId()) && p[2].equals(normalizedDate)) {
+                    try {
+                        double amount = Double.parseDouble(p[3]);
+                        if (!Double.isFinite(amount) || amount < 0) throw new NumberFormatException();
+                        boundary += amount;
+                    } catch (NumberFormatException e) {
+                        System.err.println("Skipping boundary record with invalid amount: " + line);
+                    }
                 }
             }
 

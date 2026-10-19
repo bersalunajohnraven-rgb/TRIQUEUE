@@ -1,39 +1,62 @@
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 public class Trip {
-    private String tripId;
-    private Driver driver;
-    private Vehicle vehicle;
-    private String route;
-    private String passengerType;
-    private int passengerCount;
-    private String timestamp;
+    private final String tripId;
+    private final Driver driver;
+    private final Vehicle vehicle;
+    private final String route;
+    private final Map<String, Integer> passengerCounts;
+    private final String timestamp;
     private FareDetails fareDetails; // composition: a Trip owns its FareDetails
 
     public Trip(String tripId, Driver driver, String route,
-                String passengerType, int passengerCount, String timestamp) {
+                Map<String, Integer> passengerCounts, String timestamp) {
         this.tripId = tripId;
         this.driver = driver;
         this.vehicle = driver.getVehicle();
         this.route = route;
-        this.passengerType = passengerType;
-        this.passengerCount = passengerCount;
+        this.passengerCounts = new LinkedHashMap<>(passengerCounts);
         this.timestamp = timestamp;
     }
 
     public double calculateFare() {
-        double base = vehicle.computeFare(route, passengerType, passengerCount); // polymorphic call
-        double percent = FileManager.getDiscountPercent(passengerType);
-        double discount = base * percent / 100.0;
+        int totalPassengerCount = getTotalPassengerCount();
+        double base = vehicle.computeFare(route, passengerCounts); // polymorphic call
+        double passengerFareShare = vehicle.computePassengerFareShare(route, totalPassengerCount);
+        double discount = 0;
+        for (Map.Entry<String, Integer> entry : passengerCounts.entrySet()) {
+            double percent = FileManager.getDiscountPercent(entry.getKey());
+            discount += passengerFareShare * entry.getValue() * percent / 100.0;
+        }
         fareDetails = new FareDetails(base, discount);
         return fareDetails.getFinalFare();
     }
 
+    public int getTotalPassengerCount() {
+        int total = 0;
+        for (int count : passengerCounts.values()) total += count;
+        return total;
+    }
+
+    private String serializePassengerCounts() {
+        StringBuilder result = new StringBuilder();
+        for (Map.Entry<String, Integer> entry : passengerCounts.entrySet()) {
+            if (result.length() > 0) result.append(';');
+            result.append(entry.getKey()).append(':').append(entry.getValue());
+        }
+        return result.toString();
+    }
+
     public FareDetails getFareDetails() { return fareDetails; }
+    public String getDriverId() { return driver.getId(); }
 
     public String toFileString() {
-        return tripId + "|" + driver.getId() + "|" + route + "|" + passengerType + "|" + passengerCount
+        return tripId + "|" + driver.getId() + "|" + route + "|" + serializePassengerCounts()
+                + "|" + getTotalPassengerCount()
                 + "|" + String.format("%.2f", fareDetails.getBaseFare())
                 + "|" + String.format("%.2f", fareDetails.getDiscountApplied())
                 + "|" + String.format("%.2f", fareDetails.getFinalFare())
-                + "|" + timestamp;
+                + "|" + timestamp + "|" + vehicle.getVehicleType();
     }
 }

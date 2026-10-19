@@ -1,36 +1,51 @@
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableCellRenderer;
 import java.awt.*;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 public class TripPanel extends JPanel {
-    private JComboBox<String> cbDriver = new JComboBox<>();
-    private JComboBox<String> cbRoute = new JComboBox<>();
-    private JComboBox<String> cbType = new JComboBox<>();
-    private JSpinner spCount = new JSpinner(new SpinnerNumberModel(1, 1, 20, 1));
-    private JLabel lblBase = new JLabel("0.00"), lblDiscount = new JLabel("0.00"), lblFinal = new JLabel("0.00");
-    private DefaultTableModel model = GuiUtil.readOnlyModel("Trip ID", "Driver", "Route", "Passenger",
-            "Count", "Base", "Discount", "Fare", "Time");
+    private final JComboBox<String> cbDriver = new JComboBox<>();
+    private final JComboBox<String> cbRoute = new JComboBox<>();
+    private final JPanel passengerCountsPanel = new JPanel(new GridBagLayout());
+    private final Map<String, JSpinner> passengerSpinners = new LinkedHashMap<>();
+    private final JLabel lblVehicleType = new JLabel("Select a driver");
+    private final JLabel lblBase = new JLabel("0.00");
+    private final JLabel lblDiscount = new JLabel("0.00");
+    private final JLabel lblFinal = new JLabel("0.00");
+    private final DefaultTableModel model = GuiUtil.readOnlyModel("Trip ID", "Driver", "Vehicle", "Route", "Passengers",
+            "Total", "Base", "Discount", "Fare", "Time", "Status");
+    private final JTable table = GuiUtil.makeTable(model);
+    private final JButton bLog = GuiUtil.button("Log Trip");
+    private final JButton bCancelEdit = GuiUtil.button("Cancel Edit");
+    private String editingTripId;
+    private String editingTimestamp;
     private boolean refreshing = false;
 
     public TripPanel() {
         setLayout(new BorderLayout(10, 10));
         setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        table.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
+        int[] columnWidths = {65, 80, 135, 150, 220, 50, 65, 70, 65, 130, 75};
+        for (int column = 0; column < columnWidths.length; column++) {
+            table.getColumnModel().getColumn(column).setPreferredWidth(columnWidths[column]);
+        }
+        table.getColumnModel().getColumn(4).setCellRenderer(new PassengerCountsRenderer());
 
         JPanel form = new JPanel(new GridBagLayout());
         form.setBorder(BorderFactory.createTitledBorder("Log a Trip"));
         GuiUtil.addRow(form, 0, "Driver:", cbDriver);
-        GuiUtil.addRow(form, 1, "Route:", cbRoute);
-        GuiUtil.addRow(form, 2, "Passenger type:", cbType);
-        GuiUtil.addRow(form, 3, "Passenger count:", spCount);
+        GuiUtil.addRow(form, 1, "Vehicle type:", lblVehicleType);
+        GuiUtil.addRow(form, 2, "Route:", cbRoute);
+        GuiUtil.addRow(form, 3, "Passenger counts:", passengerCountsPanel);
         lblFinal.setFont(lblFinal.getFont().deriveFont(Font.BOLD, 18f));
         lblFinal.setForeground(GuiUtil.NAVY);
         GuiUtil.addRow(form, 4, "Base fare:", lblBase);
         GuiUtil.addRow(form, 5, "Discount:", lblDiscount);
         GuiUtil.addRow(form, 6, "FARE TO COLLECT:", lblFinal);
-        JButton bLog = GuiUtil.button("Log Trip");
         JPanel inner = new JPanel(new BorderLayout());
         inner.add(form, BorderLayout.CENTER);
         JPanel bp = new JPanel(new FlowLayout(FlowLayout.LEFT));
@@ -38,75 +53,353 @@ public class TripPanel extends JPanel {
         inner.add(bp, BorderLayout.SOUTH);
         JPanel formWrap = new JPanel(new BorderLayout());
         formWrap.add(inner, BorderLayout.NORTH);
-        formWrap.setPreferredSize(new Dimension(340, 0));
+        formWrap.setPreferredSize(new Dimension(360, 0));
         add(formWrap, BorderLayout.WEST);
 
-        JScrollPane sp = new JScrollPane(GuiUtil.makeTable(model));
+        JPanel recordsPanel = new JPanel(new BorderLayout());
+        JScrollPane sp = new JScrollPane(table);
         sp.setBorder(BorderFactory.createTitledBorder("Trip Records"));
-        add(sp, BorderLayout.CENTER);
+        recordsPanel.add(sp, BorderLayout.CENTER);
+        JButton bEdit = GuiUtil.button("Edit Selected Trip");
+        JButton bVoid = GuiUtil.button("Void Selected Trip");
+        bCancelEdit.setEnabled(false);
+        JPanel recordActions = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        recordActions.add(bEdit);
+        recordActions.add(bVoid);
+        recordActions.add(bCancelEdit);
+        recordsPanel.add(recordActions, BorderLayout.SOUTH);
+        add(recordsPanel, BorderLayout.CENTER);
 
         java.awt.event.ActionListener preview = e -> { if (!refreshing) updatePreview(); };
         cbDriver.addActionListener(preview);
         cbRoute.addActionListener(preview);
-        cbType.addActionListener(preview);
-        spCount.addChangeListener(e -> { if (!refreshing) updatePreview(); });
         bLog.addActionListener(e -> logTrip());
-        refresh();
+        bEdit.addActionListener(e -> beginEditTrip());
+        bVoid.addActionListener(e -> voidSelectedTrip());
+        bCancelEdit.addActionListener(e -> cancelEditTrip());
+        reloadData();
     }
 
-    public void refresh() {
+    public final void reloadData() {
         refreshing = true;
-        Object d = cbDriver.getSelectedItem(), r = cbRoute.getSelectedItem(), t = cbType.getSelectedItem();
+        Object selectedDriver = cbDriver.getSelectedItem();
+        Object selectedRoute = cbRoute.getSelectedItem();
+        Map<String, Integer> previousCounts = new LinkedHashMap<>();
+        for (Map.Entry<String, JSpinner> entry : passengerSpinners.entrySet()) {
+            previousCounts.put(entry.getKey(), (Integer) entry.getValue().getValue());
+        }
+
         cbDriver.removeAllItems();
-        for (Driver dr : AppData.drivers) cbDriver.addItem(AppData.label(dr));
+        for (Driver driver : AppData.drivers) cbDriver.addItem(AppData.label(driver));
         cbRoute.removeAllItems();
-        for (String[] row : FileManager.getRoutes()) cbRoute.addItem(row[0]);
-        cbType.removeAllItems();
-        for (String[] row : FileManager.getDiscounts()) cbType.addItem(row[0]);
-        if (d != null) cbDriver.setSelectedItem(d);
-        if (r != null) cbRoute.setSelectedItem(r);
-        if (t != null) cbType.setSelectedItem(t);
+        for (String[] route : FileManager.getRoutes()) cbRoute.addItem(route[0]);
+        Driver loading = AppData.queue.getLoadingDriver();
+        if (loading != null) {
+            cbDriver.setSelectedItem(AppData.label(loading));
+            cbDriver.setEnabled(false);
+        } else {
+            if (selectedDriver != null) cbDriver.setSelectedItem(selectedDriver);
+            cbDriver.setEnabled(true);
+        }
+        if (selectedRoute != null) cbRoute.setSelectedItem(selectedRoute);
+
+        passengerCountsPanel.removeAll();
+        passengerSpinners.clear();
+        int row = 0;
+        for (String[] discount : FileManager.getDiscounts()) {
+            addPassengerCountInput(discount[0], previousCounts.getOrDefault(discount[0], 0), row++);
+        }
+        if (row == 0) {
+            passengerCountsPanel.add(new JLabel("Configure passenger types in Fares & Routes."));
+        }
+        passengerCountsPanel.revalidate();
+        passengerCountsPanel.repaint();
         refreshing = false;
 
         model.setRowCount(0);
-        for (String line : FileManager.readFile(FileManager.TRIPS)) {
+        Map<String, String> statuses = FileManager.getTripStatuses();
+        for (String line : FileManager.getEffectiveTrips().values()) {
             String[] p = line.split("\\|");
-            if (p.length >= 9) model.addRow(new Object[]{p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7], p[8]});
+            if (p.length >= 9) {
+                String status = statuses.getOrDefault(p[0], "ACTIVE");
+                String vehicleType = p.length >= 10 ? p[9] : getCurrentVehicleLabel(p[1]);
+                model.addRow(new Object[]{p[0], p[1], vehicleType, p[2], p[3],
+                        p[4], p[5], p[6], p[7], p[8], status});
+            }
         }
+        adjustPassengerRowHeights();
         updatePreview();
     }
 
+    private String getCurrentVehicleLabel(String driverId) {
+        Driver driver = AppData.findDriver(driverId);
+        return driver == null ? "Not recorded" : driver.getVehicle().getVehicleType() + " (current)";
+    }
+
+    private void adjustPassengerRowHeights() {
+        int column = 4;
+        int width = table.getColumnModel().getColumn(column).getWidth();
+        for (int row = 0; row < model.getRowCount(); row++) {
+            Component renderer = table.prepareRenderer(table.getCellRenderer(row, column), row, column);
+            renderer.setSize(new Dimension(width, Short.MAX_VALUE));
+            table.setRowHeight(row, Math.max(table.getRowHeight(), renderer.getPreferredSize().height));
+        }
+    }
+
+    private static final class PassengerCountsRenderer extends JTextArea implements TableCellRenderer {
+        private PassengerCountsRenderer() {
+            setLineWrap(true);
+            setWrapStyleWord(true);
+            setOpaque(true);
+            setBorder(BorderFactory.createEmptyBorder(2, 4, 2, 4));
+        }
+
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value, boolean selected,
+                                                       boolean hasFocus, int row, int column) {
+            String text = value == null ? "" : value.toString().replace(";", ", ").replace(":", ": ");
+            setText(text);
+            setToolTipText(text);
+            setFont(table.getFont());
+            setBackground(selected ? table.getSelectionBackground() : table.getBackground());
+            setForeground(selected ? table.getSelectionForeground() : table.getForeground());
+            return this;
+        }
+    }
+
+    private void beginEditTrip() {
+        int row = table.getSelectedRow();
+        if (row < 0) {
+            GuiUtil.error(this, "Select a trip record first.");
+            return;
+        }
+        String status = (String) model.getValueAt(row, 10);
+        if ("VOIDED".equals(status)) {
+            GuiUtil.error(this, "A voided trip cannot be edited.");
+            return;
+        }
+        String[] p = new String[9];
+        p[0] = String.valueOf(model.getValueAt(row, 0));
+        p[1] = String.valueOf(model.getValueAt(row, 1));
+        p[2] = String.valueOf(model.getValueAt(row, 3));
+        p[3] = String.valueOf(model.getValueAt(row, 4));
+        p[4] = String.valueOf(model.getValueAt(row, 5));
+        p[5] = String.valueOf(model.getValueAt(row, 6));
+        p[6] = String.valueOf(model.getValueAt(row, 7));
+        p[7] = String.valueOf(model.getValueAt(row, 8));
+        p[8] = String.valueOf(model.getValueAt(row, 9));
+
+        Map<String, Integer> counts = parsePassengerCounts(p[3], p[4]);
+        if (counts.isEmpty()) {
+            GuiUtil.error(this, "The saved passenger counts could not be read, so this trip cannot be edited.");
+            return;
+        }
+        for (String type : counts.keySet()) {
+            if (!passengerSpinners.containsKey(type)) {
+                GuiUtil.error(this, "This trip uses a passenger type that is no longer configured: " + type);
+                return;
+            }
+        }
+        Driver driver = AppData.findDriver(p[1]);
+        if (driver == null) {
+            GuiUtil.error(this, "The driver for this trip is no longer registered.");
+            return;
+        }
+
+        editingTripId = p[0];
+        editingTimestamp = p[8];
+        cbDriver.setSelectedItem(AppData.label(driver));
+        cbRoute.setSelectedItem(p[2]);
+        for (Map.Entry<String, JSpinner> entry : passengerSpinners.entrySet()) {
+            entry.getValue().setValue(counts.getOrDefault(entry.getKey(), 0));
+        }
+        bLog.setText("Save Trip Changes");
+        bCancelEdit.setEnabled(true);
+        updatePreview();
+    }
+
+    private Map<String, Integer> parsePassengerCounts(String mix, String legacyCount) {
+        Map<String, Integer> counts = new LinkedHashMap<>();
+        if (!mix.contains(":")) {
+            try {
+                counts.put(mix, Integer.parseInt(legacyCount));
+            } catch (NumberFormatException ignored) { }
+            return counts;
+        }
+        for (String item : mix.split(";")) {
+            int separator = item.lastIndexOf(':');
+            if (separator <= 0) continue;
+            try {
+                int count = Integer.parseInt(item.substring(separator + 1));
+                if (count > 0) counts.put(item.substring(0, separator), count);
+            } catch (NumberFormatException ignored) { }
+        }
+        return counts;
+    }
+
+    private void cancelEditTrip() {
+        editingTripId = null;
+        editingTimestamp = null;
+        bLog.setText("Log Trip");
+        bCancelEdit.setEnabled(false);
+        updatePreview();
+    }
+
+    private void voidSelectedTrip() {
+        if (editingTripId != null) {
+            GuiUtil.error(this, "Cancel the current edit before voiding a trip.");
+            return;
+        }
+        int row = table.getSelectedRow();
+        if (row < 0) {
+            GuiUtil.error(this, "Select a trip record first.");
+            return;
+        }
+        if ("VOIDED".equals(model.getValueAt(row, 10))) {
+            GuiUtil.error(this, "That trip has already been voided.");
+            return;
+        }
+
+        String tripId = (String) model.getValueAt(row, 0);
+        String reason = JOptionPane.showInputDialog(this, "Reason for voiding trip " + tripId + ":",
+                "Void Trip", JOptionPane.QUESTION_MESSAGE);
+        if (reason == null) return;
+        reason = reason.trim();
+        if (reason.isEmpty()) {
+            GuiUtil.error(this, "Enter a reason so the void is recorded in the audit log.");
+            return;
+        }
+        int confirm = JOptionPane.showConfirmDialog(this,
+                "Void trip " + tripId + "? It will no longer count in earnings reports.",
+                "Confirm Trip Void", JOptionPane.YES_NO_OPTION);
+        if (confirm != JOptionPane.YES_OPTION) return;
+
+        if (!FileManager.voidTrip(tripId, reason)) {
+            GuiUtil.error(this, "Could not void the trip. It may already be voided or the data file could not be written.");
+            return;
+        }
+        reloadData();
+        GuiUtil.info(this, "Trip " + tripId + " was voided and recorded in the audit log.");
+    }
+
+    private void addPassengerCountInput(String type, int initialCount, int row) {
+        GridBagConstraints label = new GridBagConstraints();
+        label.gridx = 0;
+        label.gridy = row;
+        label.anchor = GridBagConstraints.WEST;
+        label.insets = new Insets(2, 2, 2, 8);
+        passengerCountsPanel.add(new JLabel(type + ":"), label);
+
+        JSpinner count = new JSpinner(new SpinnerNumberModel(initialCount, 0, 20, 1));
+        count.addChangeListener(e -> { if (!refreshing) updatePreview(); });
+        GridBagConstraints input = new GridBagConstraints();
+        input.gridx = 1;
+        input.gridy = row;
+        input.weightx = 1;
+        input.fill = GridBagConstraints.HORIZONTAL;
+        input.insets = new Insets(2, 2, 2, 2);
+        passengerCountsPanel.add(count, input);
+        passengerSpinners.put(type, count);
+    }
+
     private Trip buildTrip(String id, String time) {
-        Driver d = AppData.fromLabel((String) cbDriver.getSelectedItem());
+        Driver driver = AppData.fromLabel((String) cbDriver.getSelectedItem());
         String route = (String) cbRoute.getSelectedItem();
-        String type = (String) cbType.getSelectedItem();
-        if (d == null || route == null || type == null) return null;
-        return new Trip(id, d, route, type, (Integer) spCount.getValue(), time);
+        if (driver == null || route == null || !FileManager.routeExists(route)) return null;
+
+        Map<String, Integer> counts = new LinkedHashMap<>();
+        int total = 0;
+        for (Map.Entry<String, JSpinner> entry : passengerSpinners.entrySet()) {
+            int count = (Integer) entry.getValue().getValue();
+            if (count > 0) counts.put(entry.getKey(), count);
+            total += count;
+        }
+        if (total < 1 || total > 20) return null;
+        return new Trip(id, driver, route, counts, time);
     }
 
     private void updatePreview() {
-        Trip t = buildTrip("PREVIEW", "");
-        if (t == null) {
-            lblBase.setText("0.00"); lblDiscount.setText("0.00"); lblFinal.setText("0.00");
+        Driver selectedDriver = AppData.fromLabel((String) cbDriver.getSelectedItem());
+        lblVehicleType.setText(selectedDriver == null ? "-" : selectedDriver.getVehicle().getVehicleType());
+        Trip trip = buildTrip("PREVIEW", "");
+        if (trip == null) {
+            lblBase.setText("0.00");
+            lblDiscount.setText("0.00");
+            lblFinal.setText("0.00");
             return;
         }
-        t.calculateFare();
-        lblBase.setText(String.format("%.2f", t.getFareDetails().getBaseFare()));
-        lblDiscount.setText(String.format("%.2f", t.getFareDetails().getDiscountApplied()));
-        lblFinal.setText(String.format("%.2f", t.getFareDetails().getFinalFare()));
+        trip.calculateFare();
+        lblBase.setText(String.format("%.2f", trip.getFareDetails().getBaseFare()));
+        lblDiscount.setText(String.format("%.2f", trip.getFareDetails().getDiscountApplied()));
+        lblFinal.setText(String.format("%.2f", trip.getFareDetails().getFinalFare()));
     }
 
     private void logTrip() {
-        String id = FileManager.nextId(FileManager.TRIPS, "T");
-        String time = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
-        Trip t = buildTrip(id, time);
-        if (t == null) {
-            GuiUtil.error(this, "Choose a driver, route and passenger type first.");
+        if (editingTripId != null) {
+            saveTripCorrection();
             return;
         }
-        double fare = t.calculateFare();
-        FileManager.appendFile(FileManager.TRIPS, t.toFileString());
-        refresh();
-        GuiUtil.info(this, String.format("Trip %s saved.%nFare to collect: %.2f", id, fare));
+        String id = FileManager.nextId(FileManager.TRIPS, "T");
+        String time = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
+        Trip trip = buildTrip(id, time);
+        if (trip == null) {
+            GuiUtil.error(this, "Choose a driver and route, then enter 1 to 20 passengers in total.");
+            return;
+        }
+        double fare = trip.calculateFare();
+        if (!FileManager.appendFile(FileManager.TRIPS, trip.toFileString())) {
+            GuiUtil.error(this, "The trip could not be saved. Check that the data folder is writable.");
+            return;
+        }
+        reloadData();
+        Driver loading = AppData.queue.getLoadingDriver();
+        if (loading == null || !loading.getId().equals(trip.getDriverId())) {
+            GuiUtil.info(this, String.format("Trip %s saved.%nFare to collect: %.2f", id, fare));
+            return;
+        }
+
+        int departed = JOptionPane.showConfirmDialog(this,
+                String.format("Trip %s was saved for %s.%nFare to collect: %.2f%n%nHas the driver departed? Confirming will mark the driver DEPARTED and call the next driver.",
+                        id, loading.getName(), fare),
+                "Confirm Departure", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
+        if (departed != JOptionPane.YES_OPTION) {
+            GuiUtil.info(this, "Trip saved. " + loading.getName()
+                    + " remains NOW LOADING. You can confirm departure from the Terminal Queue tab later.");
+            return;
+        }
+        if (!AppData.queue.completeLoadingDriver("Trip " + id + " departure confirmed")) {
+            GuiUtil.error(this, "The trip was saved, but departure status could not be saved. Confirm departure from the Terminal Queue tab.");
+            return;
+        }
+        Driver next = AppData.queue.getLoadingDriver();
+        reloadData();
+        GuiUtil.info(this, next == null
+                ? loading.getName() + " is marked DEPARTED. No drivers are waiting."
+                : loading.getName() + " is marked DEPARTED. " + next.getName() + " is now loading.");
+    }
+
+    private void saveTripCorrection() {
+        Trip replacement = buildTrip(editingTripId, editingTimestamp);
+        if (replacement == null) {
+            GuiUtil.error(this, "Choose a driver and route, then enter 1 to 20 passengers in total.");
+            return;
+        }
+        String reason = JOptionPane.showInputDialog(this, "Reason for correcting trip " + editingTripId + ":",
+                "Correct Trip", JOptionPane.QUESTION_MESSAGE);
+        if (reason == null) return;
+        reason = reason.trim();
+        if (reason.isEmpty()) {
+            GuiUtil.error(this, "Enter a reason so the correction is recorded in the audit log.");
+            return;
+        }
+        replacement.calculateFare();
+        String correctedId = editingTripId;
+        if (!FileManager.correctTrip(correctedId, reason, replacement.toFileString())) {
+            GuiUtil.error(this, "Could not save the trip correction. It may have been voided or the audit file could not be written.");
+            return;
+        }
+        cancelEditTrip();
+        reloadData();
+        GuiUtil.info(this, "Trip " + correctedId + " was corrected and recorded in the audit log.");
     }
 }

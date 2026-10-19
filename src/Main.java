@@ -1,6 +1,7 @@
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.*;
 
 public class Main {
@@ -95,6 +96,13 @@ public class Main {
                     System.out.println("Vehicle type must be Tricycle or HabalHabal.");
                     return;
                 }
+                for (Driver existing : drivers) {
+                    if (existing.getLicenseNumber().equalsIgnoreCase(license)
+                            || existing.getVehicle().getPlateNumber().equalsIgnoreCase(plate)) {
+                        System.out.println("That license number or plate number is already registered.");
+                        return;
+                    }
+                }
                 String id = FileManager.nextId(FileManager.DRIVERS, "D");
                 drivers.add(new Driver(id, name, contact, license, plate, type));
                 FileManager.saveDrivers(drivers);
@@ -169,13 +177,25 @@ public class Main {
         String route = readLine("Route: ");
         if (!FileManager.routeExists(route)) { System.out.println("Route not found."); return; }
 
-        String type = readLine("Passenger type (Regular/Student/Senior/PWD): ");
-        int count = readInt("Passenger count: ");
-        if (count <= 0) { System.out.println("Passenger count must be at least 1."); return; }
+        Map<String, Integer> passengerCounts = new LinkedHashMap<>();
+        int totalPassengers = 0;
+        for (String[] discount : FileManager.getDiscounts()) {
+            int count = readInt("Number of " + discount[0] + " passengers: ");
+            if (count < 0 || count > 20 || totalPassengers + count > 20) {
+                System.out.println("Passenger counts must be non-negative and total no more than 20.");
+                return;
+            }
+            if (count > 0) passengerCounts.put(discount[0], count);
+            totalPassengers += count;
+        }
+        if (totalPassengers == 0) {
+            System.out.println("Enter at least one passenger.");
+            return;
+        }
 
         String tripId = FileManager.nextId(FileManager.TRIPS, "T");
         String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
-        Trip trip = new Trip(tripId, d, route, type, count, timestamp);
+        Trip trip = new Trip(tripId, d, route, passengerCounts, timestamp);
         double fare = trip.calculateFare();
 
         FileManager.appendFile(FileManager.TRIPS, trip.toFileString());
@@ -194,7 +214,7 @@ public class Main {
                 String route = readLine("Route name: ");
                 double tri = readDouble("Tricycle fare per passenger: ");
                 double hab = readDouble("HabalHabal fare per trip: ");
-                if (route.isEmpty() || tri < 0 || hab < 0) {
+                if (route.isEmpty() || !Double.isFinite(tri) || !Double.isFinite(hab) || tri < 0 || hab < 0) {
                     System.out.println("Invalid route or negative fare.");
                     return;
                 }
@@ -205,7 +225,7 @@ public class Main {
             case 3: {
                 String type = readLine("Passenger type: ");
                 double pct = readDouble("Discount percent (0-100): ");
-                if (type.isEmpty() || pct < 0 || pct > 100) {
+                if (type.isEmpty() || !Double.isFinite(pct) || pct < 0 || pct > 100) {
                     System.out.println("Invalid input.");
                     return;
                 }
@@ -228,7 +248,7 @@ public class Main {
                 Driver d = findDriver(readLine("Driver ID: "));
                 if (d == null) { System.out.println("Driver not found."); return; }
                 double amount = readDouble("Boundary amount: ");
-                if (!d.payBoundary(amount)) return; // rejects negatives
+                if (!Double.isFinite(amount) || !d.payBoundary(amount)) return;
                 String id = FileManager.nextId(FileManager.BOUNDARY, "B");
                 FileManager.appendFile(FileManager.BOUNDARY,
                         id + "|" + d.getId() + "|" + today + "|" + String.format("%.2f", amount));
@@ -238,7 +258,11 @@ public class Main {
             case 2: {
                 String date = readLine("Date (yyyy-MM-dd, Enter = today): ");
                 if (date.isEmpty()) date = today;
-                dispatcher.generateDailyReport(drivers, date);
+                try {
+                    dispatcher.generateDailyReport(drivers, LocalDate.parse(date).toString());
+                } catch (DateTimeParseException ex) {
+                    System.out.println("Please enter a valid date in yyyy-MM-dd format.");
+                }
                 break;
             }
             default: break;

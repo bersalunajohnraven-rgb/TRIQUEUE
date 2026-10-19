@@ -29,7 +29,7 @@ public class DriverPanel extends JPanel {
         GuiUtil.addRow(form, 4, "Vehicle Type:", cbType);
 
         JButton bAdd = GuiUtil.button("Add");
-        JButton bUpdate = GuiUtil.button("Update Contact");
+        JButton bUpdate = GuiUtil.button("Update Driver Info");
         JButton bDelete = GuiUtil.button("Delete");
         JButton bClear = GuiUtil.button("Clear");
         JPanel buttons = new JPanel(new FlowLayout(FlowLayout.LEFT));
@@ -41,21 +41,21 @@ public class DriverPanel extends JPanel {
         add(south, BorderLayout.SOUTH);
 
         bAdd.addActionListener(e -> addDriver());
-        bUpdate.addActionListener(e -> updateContact());
+        bUpdate.addActionListener(e -> updateDriver());
         bDelete.addActionListener(e -> deleteDriver());
         bClear.addActionListener(e -> clearForm());
         tfSearch.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
-            public void insertUpdate(javax.swing.event.DocumentEvent e) { refresh(); }
-            public void removeUpdate(javax.swing.event.DocumentEvent e) { refresh(); }
-            public void changedUpdate(javax.swing.event.DocumentEvent e) { refresh(); }
+            public void insertUpdate(javax.swing.event.DocumentEvent e) { reloadData(); }
+            public void removeUpdate(javax.swing.event.DocumentEvent e) { reloadData(); }
+            public void changedUpdate(javax.swing.event.DocumentEvent e) { reloadData(); }
         });
         table.getSelectionModel().addListSelectionListener(e -> {
             if (!e.getValueIsAdjusting()) fillFormFromSelection();
         });
-        refresh();
+        reloadData();
     }
 
-    public void refresh() {
+    public final void reloadData() {
         String key = tfSearch.getText().trim().toLowerCase();
         model.setRowCount(0);
         for (Driver d : AppData.drivers) {
@@ -101,26 +101,65 @@ public class DriverPanel extends JPanel {
             GuiUtil.error(this, "Contact number must be 7-11 digits.");
             return;
         }
+        for (Driver existing : AppData.drivers) {
+            if (existing.getLicenseNumber().equalsIgnoreCase(license)
+                    || existing.getVehicle().getPlateNumber().equalsIgnoreCase(plate)) {
+                GuiUtil.error(this, "That license number or plate number is already registered.");
+                return;
+            }
+        }
         String id = FileManager.nextId(FileManager.DRIVERS, "D");
         AppData.drivers.add(new Driver(id, name, contact, license, plate, (String) cbType.getSelectedItem()));
         FileManager.saveDrivers(AppData.drivers);
         clearForm();
-        refresh();
+        reloadData();
         GuiUtil.info(this, "Registered " + name + " with ID " + id);
     }
 
-    private void updateContact() {
+    private void updateDriver() {
         Driver d = selectedDriver();
         if (d == null) { GuiUtil.error(this, "Select a driver in the table first."); return; }
+
+        String name = tfName.getText().trim();
         String contact = tfContact.getText().trim();
+        String license = tfLicense.getText().trim();
+        String plate = tfPlate.getText().trim();
+        String vehicleType = (String) cbType.getSelectedItem();
+
+        if (name.isEmpty() || license.isEmpty() || plate.isEmpty()) {
+            GuiUtil.error(this, "Name, license and plate cannot be empty.");
+            return;
+        }
         if (!contact.matches("\\d{7,11}")) {
             GuiUtil.error(this, "Contact number must be 7-11 digits.");
             return;
         }
-        d.setContactNumber(contact);
-        FileManager.saveDrivers(AppData.drivers);
-        refresh();
-        GuiUtil.info(this, "Contact number updated.");
+        for (Driver existing : AppData.drivers) {
+            if (existing == d) continue;
+            if (existing.getLicenseNumber().equalsIgnoreCase(license)
+                    || existing.getVehicle().getPlateNumber().equalsIgnoreCase(plate)) {
+                GuiUtil.error(this, "That license number or plate number is already registered to another driver.");
+                return;
+            }
+        }
+
+        int driverIndex = AppData.drivers.indexOf(d);
+        Driver updated = new Driver(d.getId(), name, contact, license, plate, vehicleType);
+        AppData.drivers.set(driverIndex, updated);
+        if (!FileManager.saveDrivers(AppData.drivers)) {
+            AppData.drivers.set(driverIndex, d);
+            GuiUtil.error(this, "Driver information could not be saved. Check that the data folder is writable.");
+            return;
+        }
+        AppData.queue.load(AppData.drivers);
+        reloadData();
+        for (int row = 0; row < model.getRowCount(); row++) {
+            if (updated.getId().equals(model.getValueAt(row, 0))) {
+                table.setRowSelectionInterval(row, row);
+                break;
+            }
+        }
+        GuiUtil.info(this, "Driver information updated.");
     }
 
     private void deleteDriver() {
@@ -133,6 +172,6 @@ public class DriverPanel extends JPanel {
         AppData.queue.load(AppData.drivers);
         AppData.queue.save();
         clearForm();
-        refresh();
+        reloadData();
     }
 }

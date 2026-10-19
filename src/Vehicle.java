@@ -1,3 +1,5 @@
+import java.util.Map;
+
 public abstract class Vehicle {
     private String plateNumber;
     private String vehicleType;
@@ -10,6 +12,7 @@ public abstract class Vehicle {
     public String getPlateNumber() { return plateNumber; }
     public String getVehicleType() { return vehicleType; }
 
-    // Each vehicle type computes the BASE fare (before discount) its own way.
-    public abstract double computeFare(String route, String passengerType, int passengerCount);
+    // Each vehicle type computes its base fare and the share eligible for discounts.
+    public abstract double computeFare(String route, Map<String, Integer> passengerCounts);
+    public abstract double computePassengerFareShare(String route, int totalPassengerCount);
 }

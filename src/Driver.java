@@ -1,7 +1,7 @@
 public class Driver extends Person {
-    private String licenseNumber;
+    private final String licenseNumber;
     private double totalEarningsToday;
-    private Vehicle vehicle;
+    private final Vehicle vehicle;
 
     public Driver(String id, String name, String contactNumber,
                   String licenseNumber, String plateNumber, String vehicleType) {
@@ -21,8 +21,8 @@ public class Driver extends Person {
     public double getNetEarnings() { return totalEarningsToday; }
 
     public void addFare(double fare) {
-        if (fare < 0) {
-            System.out.println("Fare cannot be negative.");
+        if (!Double.isFinite(fare) || fare < 0) {
+            System.out.println("Fare must be a finite, non-negative amount.");
             return;
         }
         totalEarningsToday += fare;
@@ -30,8 +30,8 @@ public class Driver extends Person {
 
     // Boundary is subtracted from today's earnings. Negative amounts are rejected.
     public boolean payBoundary(double amount) {
-        if (amount < 0) {
-            System.out.println("Boundary amount cannot be negative.");
+        if (!Double.isFinite(amount) || amount < 0) {
+            System.out.println("Boundary amount must be finite and non-negative.");
             return false;
         }
         totalEarningsToday -= amount;

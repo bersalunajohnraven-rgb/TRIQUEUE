@@ -70,12 +70,12 @@ public class FarePanel extends JPanel {
             try {
                 double tri = Double.parseDouble(tfTri.getText().trim());
                 double hab = Double.parseDouble(tfHab.getText().trim());
-                if (route.isEmpty() || tri < 0 || hab < 0) {
+                if (route.isEmpty() || !Double.isFinite(tri) || !Double.isFinite(hab) || tri < 0 || hab < 0) {
                     GuiUtil.error(this, "Enter a route name and non-negative fares.");
                     return;
                 }
                 FileManager.saveRoute(route, tri, hab);
-                refresh();
+                reloadData();
             } catch (NumberFormatException ex) {
                 GuiUtil.error(this, "Fares must be numbers.");
             }
@@ -84,20 +84,20 @@ public class FarePanel extends JPanel {
             String type = tfType.getText().trim();
             try {
                 double pct = Double.parseDouble(tfPct.getText().trim());
-                if (type.isEmpty() || pct < 0 || pct > 100) {
+                if (type.isEmpty() || !Double.isFinite(pct) || pct < 0 || pct > 100) {
                     GuiUtil.error(this, "Enter a type and a percent from 0 to 100.");
                     return;
                 }
                 FileManager.saveDiscount(type, pct);
-                refresh();
+                reloadData();
             } catch (NumberFormatException ex) {
                 GuiUtil.error(this, "Discount must be a number.");
             }
         });
-        refresh();
+        reloadData();
     }
 
-    public void refresh() {
+    public final void reloadData() {
         routeModel.setRowCount(0);
         for (String[] r : FileManager.getRoutes()) routeModel.addRow(r);
         discModel.setRowCount(0);
