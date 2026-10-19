@@ -1,14 +1,28 @@
-"# TRIQUEUE" 
-"# TRIQUEUE" 
-"# TRIQUEUE" 
-
 # TrikeQueue
 
+TrikeQueue is a Java Swing application for managing terminal drivers, queues, trips, fares, boundary payments, and daily earnings.
+
 ## Requirements
-Java JDK 17 or later.
 
-## Run on Windows
-Open PowerShell in the project folder and run:
+- Java JDK 17 or later
+- Windows for the included batch launchers
+
+## Run with your own records
+
+From the project folder, run:
+
+```powershell
 .\run.bat
+```
 
-The application stores its records in the `data` folder.
+This uses the `data` folder.
+
+## Run with fictional sample records
+
+From the project folder, run:
+
+```powershell
+.\run-sample.bat
+```
+
+This uses `sample-data` and leaves the `data` folder untouched. Changes made while using the sample launcher are saved in `sample-data`.
