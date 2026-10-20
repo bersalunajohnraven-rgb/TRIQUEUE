@@ -1,0 +1,1 @@
+T002|CORRECT|2026-10-19 12:42:44|Miscount|D001|Terminal to Poblacion|Regular:1;Senior:2|3|40.00|5.33|34.67|2026-10-19 11:20

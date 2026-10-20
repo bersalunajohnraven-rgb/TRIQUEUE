@@ -1,0 +1,10 @@
+2026-10-19 12:38:00|D001|JOINED|Added to waiting queue
+2026-10-19 12:38:07|D001|CALLED|Called to load passengers
+2026-10-19 12:38:13|D002|JOINED|Added to waiting queue
+2026-10-19 12:38:16|D003|JOINED|Added to waiting queue
+2026-10-19 12:40:38|D002|CALLED|Called to load passengers
+2026-10-19 13:08:02|D003|NOW_LOADING|Called to load passengers
+2026-10-19 13:08:47|D003|DEPARTED|Trip T005 departure confirmed
+2026-10-19 18:50:43|D002|JOINED|Added to waiting queue
+2026-10-19 18:50:50|D002|NOW_LOADING|Called to load passengers
+2026-10-19 18:51:10|D002|DEPARTED|Trip T006 departure confirmed
