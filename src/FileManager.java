@@ -323,6 +323,28 @@ public class FileManager {
         return out;
     }
 
+    // Removes a ROUTE entry by name (case-insensitive). Returns true if a line was removed.
+    public static boolean deleteRoute(String route) {
+        List<String> lines = readFile(FARES);
+        boolean removed = lines.removeIf(line -> {
+            String[] p = line.split("\\|");
+            return p.length >= 2 && p[0].equals("ROUTE") && p[1].equalsIgnoreCase(route);
+        });
+        if (removed) writeFile(FARES, lines);
+        return removed;
+    }
+
+    // Removes a DISCOUNT entry by passenger type (case-insensitive). Returns true if a line was removed.
+    public static boolean deleteDiscount(String type) {
+        List<String> lines = readFile(FARES);
+        boolean removed = lines.removeIf(line -> {
+            String[] p = line.split("\\|");
+            return p.length >= 2 && p[0].equals("DISCOUNT") && p[1].equalsIgnoreCase(type);
+        });
+        if (removed) writeFile(FARES, lines);
+        return removed;
+    }
+
     public static void printFares() {
         System.out.println("\n--- ROUTES (Tricycle per passenger / HabalHabal per trip) ---");
         for (String line : readFile(FARES)) {

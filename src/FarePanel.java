@@ -23,8 +23,10 @@ public class FarePanel extends JPanel {
         GuiUtil.addRow(lf, 1, "Tricycle fare:", tfTri);
         GuiUtil.addRow(lf, 2, "HabalHabal fare:", tfHab);
         JButton bRoute = GuiUtil.button("Add / Update Route");
+        JButton bDelRoute = GuiUtil.button("Delete Route");
         JPanel lb = new JPanel(new FlowLayout(FlowLayout.LEFT));
         lb.add(bRoute);
+        lb.add(bDelRoute);
         JPanel lsouth = new JPanel(new BorderLayout());
         lsouth.add(lf, BorderLayout.CENTER);
         lsouth.add(lb, BorderLayout.SOUTH);
@@ -38,8 +40,10 @@ public class FarePanel extends JPanel {
         GuiUtil.addRow(rf, 0, "Passenger type:", tfType);
         GuiUtil.addRow(rf, 1, "Discount %:", tfPct);
         JButton bDisc = GuiUtil.button("Add / Update Discount");
+        JButton bDelDisc = GuiUtil.button("Delete Discount");
         JPanel rb = new JPanel(new FlowLayout(FlowLayout.LEFT));
         rb.add(bDisc);
+        rb.add(bDelDisc);
         JPanel rsouth = new JPanel(new BorderLayout());
         rsouth.add(rf, BorderLayout.CENTER);
         rsouth.add(rb, BorderLayout.SOUTH);
@@ -80,6 +84,26 @@ public class FarePanel extends JPanel {
                 GuiUtil.error(this, "Fares must be numbers.");
             }
         });
+
+        bDelRoute.addActionListener(e -> {
+            String route = tfRoute.getText().trim();
+            if (route.isEmpty()) {
+                GuiUtil.error(this, "Select or type a route name to delete.");
+                return;
+            }
+            int confirm = JOptionPane.showConfirmDialog(this,
+                    "Delete route \"" + route + "\"? This cannot be undone.",
+                    "Confirm Delete", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+            if (confirm != JOptionPane.YES_OPTION) return;
+            if (FileManager.deleteRoute(route)) {
+                tfRoute.setText(""); tfTri.setText(""); tfHab.setText("");
+                reloadData();
+                GuiUtil.info(this, "Route \"" + route + "\" deleted.");
+            } else {
+                GuiUtil.error(this, "Route \"" + route + "\" was not found.");
+            }
+        });
+
         bDisc.addActionListener(e -> {
             String type = tfType.getText().trim();
             try {
@@ -94,6 +118,26 @@ public class FarePanel extends JPanel {
                 GuiUtil.error(this, "Discount must be a number.");
             }
         });
+
+        bDelDisc.addActionListener(e -> {
+            String type = tfType.getText().trim();
+            if (type.isEmpty()) {
+                GuiUtil.error(this, "Select or type a passenger type to delete.");
+                return;
+            }
+            int confirm = JOptionPane.showConfirmDialog(this,
+                    "Delete discount for \"" + type + "\"? This cannot be undone.",
+                    "Confirm Delete", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+            if (confirm != JOptionPane.YES_OPTION) return;
+            if (FileManager.deleteDiscount(type)) {
+                tfType.setText(""); tfPct.setText("");
+                reloadData();
+                GuiUtil.info(this, "Discount for \"" + type + "\" deleted.");
+            } else {
+                GuiUtil.error(this, "Discount type \"" + type + "\" was not found.");
+            }
+        });
+
         reloadData();
     }
 
