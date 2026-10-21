@@ -8,3 +8,12 @@
 2026-10-19 18:50:43|D002|JOINED|Added to waiting queue
 2026-10-19 18:50:50|D002|NOW_LOADING|Called to load passengers
 2026-10-19 18:51:10|D002|DEPARTED|Trip T006 departure confirmed
+2026-10-20 21:43:06|D001|JOINED|Added to waiting queue
+2026-10-20 21:43:12|D003|JOINED|Added to waiting queue
+2026-10-20 21:43:13|D005|JOINED|Added to waiting queue
+2026-10-20 21:43:20|D006|JOINED|Added to waiting queue
+2026-10-20 21:43:37|D001|NOW_LOADING|Called to load passengers
+2026-10-20 21:44:34|D001|DEPARTED|Trip T007 departure confirmed
+2026-10-20 21:44:34|D003|NOW_LOADING|Called after previous driver departed
+2026-10-21 09:04:13|D003|DEPARTED|Trip T008 departure confirmed
+2026-10-21 09:04:13|D005|NOW_LOADING|Called after previous driver departed

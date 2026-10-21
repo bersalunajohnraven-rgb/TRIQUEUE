@@ -1,7 +1,7 @@
 import java.util.ArrayList;
 import java.util.List;
 
-// Shared data used by every GUI panel
+
 public class AppData {
     public static List<Driver> drivers = new ArrayList<>();
     public static TerminalQueue queue = new TerminalQueue();

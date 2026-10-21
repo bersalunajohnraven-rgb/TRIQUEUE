@@ -8,6 +8,7 @@ public class Driver extends Person {
         super(id, name, contactNumber);
         this.licenseNumber = licenseNumber;
         this.totalEarningsToday = 0;
+       
         // Polymorphism: the reference is a Vehicle, the object is Tricycle or HabalHabal
         if (vehicleType.equalsIgnoreCase("HabalHabal")) {
             this.vehicle = new HabalHabal(plateNumber);
