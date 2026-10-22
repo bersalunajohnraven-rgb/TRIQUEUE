@@ -1,3 +1,10 @@
+package triqueue.ui;
+
+import triqueue.core.AppData;
+import triqueue.model.Driver;
+import triqueue.model.Trip;
+import triqueue.storage.FileManager;
+
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableCellRenderer;

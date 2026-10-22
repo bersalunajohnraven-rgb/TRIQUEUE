@@ -1,3 +1,9 @@
+package triqueue;
+
+import triqueue.core.*;
+import triqueue.model.*;
+import triqueue.storage.*;
+
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -11,7 +17,7 @@ public class Main {
     private static Dispatcher dispatcher = new Dispatcher("DSP001", "Terminal Dispatcher", "09170000000", "Main Terminal");
 
     public static void main(String[] args) {
-        drivers = FileManager.loadDrivers();
+        drivers = FileManager.loadDrivers();    
         queue.load(drivers);
 
         boolean running = true;

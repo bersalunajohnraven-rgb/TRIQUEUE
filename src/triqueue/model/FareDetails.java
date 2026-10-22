@@ -1,3 +1,5 @@
+package triqueue.model;
+
 public class FareDetails {
     private double baseFare;
     private double discountApplied;

@@ -1,3 +1,8 @@
+package triqueue.core;
+
+import triqueue.model.*;
+import triqueue.storage.FileManager;
+
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;

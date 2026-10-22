@@ -1,3 +1,7 @@
+package triqueue.model;
+
+import triqueue.core.TerminalQueue;
+
 public class Driver extends Person {
     private final String licenseNumber;
     private double totalEarningsToday;

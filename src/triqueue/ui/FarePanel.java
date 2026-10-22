@@ -1,3 +1,7 @@
+package triqueue.ui;
+
+import triqueue.storage.FileManager;
+
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;

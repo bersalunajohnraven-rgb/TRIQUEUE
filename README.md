@@ -2,6 +2,14 @@
 
 TrikeQueue is a Java Swing application for managing terminal drivers, queues, trips, fares, boundary payments, and daily earnings.
 
+## Source layout
+
+- `src/triqueue/model` — drivers, vehicles, trips, and fare details
+- `src/triqueue/core` — application state, dispatcher, and queue workflow
+- `src/triqueue/storage` — file persistence and data-directory handling
+- `src/triqueue/ui` — Swing window, panels, and UI helpers
+- `src/triqueue/Main.java` — console entry point
+
 ## Requirements
 
 - Java JDK 17 or later

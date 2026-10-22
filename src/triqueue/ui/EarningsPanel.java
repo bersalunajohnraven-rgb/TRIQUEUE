@@ -1,3 +1,9 @@
+package triqueue.ui;
+
+import triqueue.core.AppData;
+import triqueue.model.Driver;
+import triqueue.storage.FileManager;
+
 import java.awt.*;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;

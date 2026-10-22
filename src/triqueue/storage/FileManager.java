@@ -1,3 +1,7 @@
+package triqueue.storage;
+
+import triqueue.model.*;
+
 import java.io.*;
 import java.net.URI;
 import java.net.URISyntaxException;

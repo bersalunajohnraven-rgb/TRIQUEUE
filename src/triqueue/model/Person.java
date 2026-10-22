@@ -1,3 +1,5 @@
+package triqueue.model;
+
 public class Person {
     private String id;
     private String name;

@@ -1,3 +1,7 @@
+package triqueue.model;
+
+import triqueue.storage.FileManager;
+
 import java.util.LinkedHashMap;
 import java.util.Map;
 

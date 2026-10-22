@@ -1,3 +1,8 @@
+package triqueue.ui;
+
+import triqueue.core.AppData;
+import triqueue.storage.FileManager;
+
 import java.awt.*;
 import java.io.IOException;
 import java.nio.file.Path;

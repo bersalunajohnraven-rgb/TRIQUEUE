@@ -1,3 +1,9 @@
+package triqueue.ui;
+
+import triqueue.core.AppData;
+import triqueue.model.Driver;
+import triqueue.storage.FileManager;
+
 import javax.swing.*;
 import java.awt.*;
 
